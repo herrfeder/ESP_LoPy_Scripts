@@ -13,10 +13,8 @@ class NanoNode(object):
 
         if mode == "rx":
             self.mode = "rx"
-            self.set_up_rx()
         if mode == "tx":
             self.mode = "tx"
-            self.set_up_tx()
                 
         self.last_recv_buffer =  []
         self.last_device_id = ""
@@ -29,21 +27,31 @@ class NanoNode(object):
             self.cmd_chain.append(cmd)
 
     def set_up_rx(self):
-        self.lora = LoRa(mode=LoRa.LORA, rx_iq=True)
+        self.lora = LoRa(mode=LoRa.LORA)
         self.loso = socket.socket(socket.AF_LORA, socket.SOCK_RAW)
         self.loso.setblocking(False)
         print("Setted up RX")
-
+        time.sleep(3)
     def set_up_tx(self):
-        self.lora = LoRa(mode=LoRa.LORA, tx_iq=True)
+        self.lora = LoRa(mode=LoRa.LORA)
         self.loso = socket.socket(socket.AF_LORA, socket.SOCK_RAW)
-        self.loso.setblocking(False)
+        self.loso.setblocking(True)
         print("Setted up TX")
+        time.sleep(3)
 
+    def pdeb(self,message):
+        print("%s DEBUG: %s"%(self.mode,message))
 
     def run(self):
+
+
         while(True):
             if self.mode == "rx":
+                self.receive_mode()
+            if self.mode == "tx":
+                self.transmit_mode()
+
+    def receive_mode(self):
                 self.set_up_rx()
                 while(True):
                     result = self.receive()
@@ -54,14 +62,24 @@ class NanoNode(object):
                         time.sleep(1)
                         break
 
-            if self.mode == "tx":
+    def transmit_mode(self):
                 self.set_up_tx()
+                cmd = []
+                cmd.append(input("Give cmd to execute:"))
                 while(True): 
                     to_send = ""
-                    if len(self.cmd_chain)>0:
-                        to_send = self.cmd_chain.pop()
-                    elif len(self.to_send_buffer)>0:
+                    if len(self.to_send_buffer)>0:
                         to_send = self.to_send_buffer.pop()
+                        self.pdeb("There is something in the send_buffer")
+                        print(to_send)
+                    elif cmd != "":
+                        to_send = cmd.pop()
+                    elif len(self.cmd_chain)>0:
+                        to_send = self.cmd_chain.pop()
+                        self.pdeb("There is something in the commandchain")
+
+                    else:
+                        pass
                     if to_send:
                         self.send(to_send,self.cb_output_payload)
                         print("sent:")
@@ -80,16 +98,15 @@ class NanoNode(object):
                                     if (ack == 200):
                                         waiting_answ = False
                                         # If the uart = machine.UART(0, 115200) and os.dupterm(uart) are set in the boot.py this print should appear in the serial port
+                                        print("got:")
                                         print("ACK")
                                     else:
                                         waiting_answ = False
                                         # If the uart = machine.UART(0, 115200) and os.dupterm(uart) are set in the boot.py this print should appear in the serial port
                                         print("Message Failed")
                                     
-                                    self.mode = "rx"
-                                    time.sleep(1)
-                                    break
-
+                        self.mode = "rx"
+                        break
 
 
     def interpret_cmd(self,msg,cb=""):
@@ -97,16 +114,17 @@ class NanoNode(object):
         if msg == b'ls':
             dirs = os.listdir()
             dirs = '\n'.join(dirs)
-            output = dirs[0:200]
-        self.to_send_buffer.append(output)
+            output = dirs[0:50]
+            self.to_send_buffer.append(output)
         if cb != "":
-            cb(dirs,self.cb_output_payload)
+            cb(output,self.cb_output_payload)
 
     def send(self, msg="", cb=""):
         if cb != "":
             self.loso.send(cb(msg))
         else:
             self.loso.send(msg)
+        self.pdeb("finished sending")
 
     def cb_output_payload(self,msg):
 
@@ -120,8 +138,9 @@ class NanoNode(object):
         pass
 
     def receive(self):
-        last_recv = self.loso.recv(512)
+        last_recv = self.loso.recv(200)
         if (len(last_recv) > 2):
+            self.pdeb("finished receiving")
             last_recv_len = last_recv[1]
             self.last_device_id, pkg_len, msg = struct.unpack(_LORA_PKG_FORMAT % last_recv_len, last_recv)
 
