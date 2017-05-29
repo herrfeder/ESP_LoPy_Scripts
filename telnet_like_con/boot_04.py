@@ -1,9 +1,9 @@
-
 from network import WLAN
 from machine import UART
 import os
 import pycom
 import machine
+from ng_new_g import NanoNode
 
 uart = UART(0, 115200)
 os.dupterm(uart) 
@@ -11,7 +11,7 @@ os.dupterm(uart)
 wlan = WLAN(mode=WLAN.STA)
 
 pycom.heartbeat(False)
-pycom.rgbled(0xff00)
+pycom.rgbled(0xff0000)
 
 if machine.reset_cause() != machine.SOFT_RESET:
         wlan.init(mode=WLAN.STA)
@@ -31,3 +31,6 @@ for net in nets:
 
         wlan = WLAN(mode=WLAN.AP)
         wlan.init(mode=WLAN.AP,ssid="lopy_04",auth=(WLAN.WPA2,"horst123"), channel=1,antenna=WLAN.INT_ANT)
+
+nn = NanoNode(0x02,"",basemode="orx")
+nn.run()
