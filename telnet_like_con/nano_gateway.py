@@ -8,11 +8,14 @@ import math
 _LORA_PKG_FORMAT = "!BB%ds"
 # A basic ack package, B: 1 byte for the deviceId, B: 1 bytes for the pkg size, B: 1 byte for the Ok (200) or error messages
 _LORA_PKG_ACK_FORMAT = "BBB"
-_MAX_PKG_LENGTH = 40
+
 DEBUG = 1
+pkg_length = {1:20,2:40,3:60}
+bandwith = {1:LoRa.BW_125KHZ,2:LoRa.BW_250KHZ,3:LoRa.BW_500KHZ}
+
 class NanoNode(object):
 
-    def __init__(self,device_id, cmd="",mode="rx",basemode=""):
+    def __init__(self,device_id, cmd="",mode="rx",basemode="",bandw=2):
 
         if basemode == "orx":
             self.basemode= "orx"
@@ -25,7 +28,10 @@ class NanoNode(object):
                 self.mode = "rx"
             elif mode == "tx":
                 self.mode = "tx"
- 
+
+        self.bandwith = bandwith[bandw] 
+        self.pkg_len = pkg_length[bandw]
+
         self.last_recv_buffer =  []
         self.last_device_id = ""
 
@@ -37,15 +43,33 @@ class NanoNode(object):
             self.cmd_chain.append(cmd)
 
     def set_up_rx(self):
-        self.lora = LoRa(mode=LoRa.LORA)
+
+        self.lora = LoRa (  mode = LoRa.LORA,
+                            #frequency = 868100000, 
+                            power_mode = LoRa.ALWAYS_ON, 
+                            tx_power = 14, 
+                            bandwidth = self.bandwith)
+                            #sf = 12, 
+                            #preamble = 8, 
+                            #coding_rate = LoRa.CODING_4_8)
+
         self.loso = socket.socket(socket.AF_LORA, socket.SOCK_RAW)
         self.loso.setblocking(False)
         self.pdeb("Setted up RX")
         time.sleep(3)
     def set_up_tx(self):
-        self.lora = LoRa(mode=LoRa.LORA)
+
+        self.lora = LoRa (  mode = LoRa.LORA,
+                            #frequency = 868100000, 
+                            power_mode = LoRa.ALWAYS_ON, 
+                            tx_power = 14,
+                            bandwidth = self.bandwith)
+                            #sf = 12, 
+                            #preamble = 8, 
+                            #coding_rate = LoRa.CODING_4_8)
+
         self.loso = socket.socket(socket.AF_LORA, socket.SOCK_RAW)
-        self.loso.setblocking(True)
+        self.loso.setblocking(False)
         self.pdeb("Setted up TX")
         time.sleep(3)
 
@@ -82,8 +106,9 @@ class NanoNode(object):
 
     def out_msg(self,msg,device_id):
         print("### DEVICE %d ###"%(device_id))
-        for line in str(msg).split("\n"):
+        for line in msg.split("\n"):
             print("%s"%(line))
+        print("### END ###")
         
 
 
@@ -134,16 +159,16 @@ class NanoNode(object):
     def create_packets(self,msg):
         pkt_list = []
 
-        for i in range(0,int(math.ceil(len(msg)/_MAX_PKG_LENGTH))+1):
+        for i in range(0,int(math.ceil(len(msg)/self.pkg_len))+1):
 
-            if not (((i+1)*_MAX_PKG_LENGTH) > len(msg)):
-                print(i*_MAX_PKG_LENGTH)
-                print((i+1)*_MAX_PKG_LENGTH)
-                pkt = msg[(i*_MAX_PKG_LENGTH):(i+1)*_MAX_PKG_LENGTH]
+            if not (((i+1)*self.pkg_len) > len(msg)):
+                print(i*self.pkg_len)
+                print((i+1)*self.pkg_len)
+                pkt = msg[(i*self.pkg_len):(i+1)*self.pkg_len]
                 pkt += "_part_"
                 pkt_list.append(pkt)
             else:
-                pkt = msg[(i*_MAX_PKG_LENGTH):-1]
+                pkt = msg[(i*self.pkg_len):-1]
                 pkt += "_fini_"
                 pkt_list.append(pkt)
                 return pkt_list
@@ -192,6 +217,7 @@ class NanoNode(object):
             last_recv_len = last_recv[1]
             self.last_device_id, pkg_len, self.msg = struct.unpack(_LORA_PKG_FORMAT % last_recv_len, last_recv)
             self.interpret_cmd(self.msg)
+            self.msg = self.msg.decode("UTF-8")
             if self.msg.endswith("_part_"):
                 self.msg = str(self.msg).replace("_part_","")
                 return 2

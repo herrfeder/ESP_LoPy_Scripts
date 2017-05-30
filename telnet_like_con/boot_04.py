@@ -3,7 +3,7 @@ from machine import UART
 import os
 import pycom
 import machine
-from ng_new_g import NanoNode
+from ng_base import NanoNode
 
 uart = UART(0, 115200)
 os.dupterm(uart) 
