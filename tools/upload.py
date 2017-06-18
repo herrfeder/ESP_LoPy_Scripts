@@ -40,6 +40,7 @@ def upload(child,up_file,new_file,host):
             sys.exit()
 
 
+
 def remove(child,basestr,host):
     filelist = []
     child.sendline("cd flash")

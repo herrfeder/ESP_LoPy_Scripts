@@ -32,5 +32,5 @@ for net in nets:
         wlan = WLAN(mode=WLAN.AP)
         wlan.init(mode=WLAN.AP,ssid="lopy_04",auth=(WLAN.WPA2,"horst123"), channel=1,antenna=WLAN.INT_ANT)
 
-nn = NanoNode(0x02,"",basemode="orx")
+nn = NanoNode(0x02,"",basemode="orx",bandw=1,sf=12)
 nn.run()

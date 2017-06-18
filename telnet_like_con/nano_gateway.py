@@ -15,7 +15,15 @@ bandwith = {1:LoRa.BW_125KHZ,2:LoRa.BW_250KHZ,3:LoRa.BW_500KHZ}
 
 class NanoNode(object):
 
-    def __init__(self,device_id, cmd="",mode="rx",basemode="",bandw=2):
+    def __init__(self,device_id, cmd="",mode="rx",basemode="",pingpong="",bandw=2,sf=8):
+
+        self.basemode = ""
+        self.mode = ""
+
+        if pingpong=="A":
+            self.pingpong = "A"
+        if pingpong=="B":
+            self.pingpong = "B"
 
         if basemode == "orx":
             self.basemode= "orx"
@@ -31,6 +39,8 @@ class NanoNode(object):
 
         self.bandwith = bandwith[bandw] 
         self.pkg_len = pkg_length[bandw]
+        self.sf = sf
+
 
         self.last_recv_buffer =  []
         self.last_device_id = ""
@@ -42,14 +52,35 @@ class NanoNode(object):
         if cmd:
             self.cmd_chain.append(cmd)
 
+    def ping_pong(self):
+        
+        lora = LoRa(mode=LoRa.LORA, frequency=863000000)
+        s = socket.socket(socket.AF_LORA, socket.SOCK_RAW)
+        s.setblocking(False)
+
+        if self.pingpong == "A":
+
+
+            while True:
+                if s.recv(64) == b'Ping':
+                    print("Ping")
+                    s.send('Pong')
+                    time.sleep(5)
+
+        if self.pingpong == "B":
+            while True:
+                s.send('Ping')
+                time.sleep(5)
+
+
     def set_up_rx(self):
 
         self.lora = LoRa (  mode = LoRa.LORA,
                             #frequency = 868100000, 
                             power_mode = LoRa.ALWAYS_ON, 
                             tx_power = 14, 
-                            bandwidth = self.bandwith)
-                            #sf = 12, 
+                            bandwidth = self.bandwith,
+                            sf = self.sf) 
                             #preamble = 8, 
                             #coding_rate = LoRa.CODING_4_8)
 
@@ -63,8 +94,8 @@ class NanoNode(object):
                             #frequency = 868100000, 
                             power_mode = LoRa.ALWAYS_ON, 
                             tx_power = 14,
-                            bandwidth = self.bandwith)
-                            #sf = 12, 
+                            bandwidth = self.bandwith,
+                            sf = self.sf)
                             #preamble = 8, 
                             #coding_rate = LoRa.CODING_4_8)
 
